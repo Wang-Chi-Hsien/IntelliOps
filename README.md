@@ -11,7 +11,7 @@
 * ** RAG 知識庫 (Knowledge Base)**: 內建向量資料庫，針對已知錯誤 (如 0x80040154) 提供「快車道」秒級解法，無須消耗 AI 算力。
 * ** 自動化修復 (Safe Automation)**: 具備安全護欄的 AI Agent，可自動執行 `FlushDNS`、`Restart Service` 等指令。
 
-## 🛠 技術堆疊 (Tech Stack)
+##  技術堆疊 (Tech Stack)
 
 * **Frontend**: C# / WPF / XAML
 * **Core Framework**: .NET 8.0
