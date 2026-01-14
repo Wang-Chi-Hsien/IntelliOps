@@ -7,7 +7,7 @@
 ##  主要功能 (Key Features)
 
 * ** 即時監控 (Real-time Monitoring)**: 透過 `EventLogWatcher` 毫秒級捕捉 Windows 應用程式錯誤。
-* ** AI 智慧分析 (AI Analysis)**: 整合 **Phi-3** (via Ollama) 進行錯誤日誌的深度解讀與建議。
+* ** AI 智慧分析 (AI Analysis)**: 整合 **Qwen2.5-3b** (via Ollama) 進行錯誤日誌的深度解讀與建議。
 * ** RAG 知識庫 (Knowledge Base)**: 內建向量資料庫，針對已知錯誤 (如 0x80040154) 提供「快車道」秒級解法，無須消耗 AI 算力。
 * ** 自動化修復 (Safe Automation)**: 具備安全護欄的 AI Agent，可自動執行 `FlushDNS`、`Restart Service` 等指令。
 
@@ -16,7 +16,7 @@
 * **Frontend**: C# / WPF / XAML
 * **Core Framework**: .NET 8.0
 * **AI Integration**: Microsoft Semantic Kernel
-* **Local LLM**: Ollama (Model: Phi-3)
+* **Local LLM**: Ollama (Model: Qwen2.5-3b)
 * **Vector Embeddings**: Nomic-embed-text
 
 ##  如何執行 (Getting Started)
@@ -27,7 +27,7 @@
 1.  [下載並安裝 Ollama](https://ollama.com/)
 2.  開啟終端機 (CMD) 執行以下指令下載模型：
     ```bash
-    ollama pull phi3
+    ollama pull Qwen2.5-3b
     ollama pull nomic-embed-text
     ```
 
