@@ -36,6 +36,9 @@ Before using this software, please ensure Ollama is installed and the required m
 2.  Unzip the package and run `IntelliOps.WPF.exe`。
 3.  The system will automatically detect and wake up the Ollama service.
 
+## Screenshots
+<img width="979" height="638" alt="Log處理器" src="https://github.com/user-attachments/assets/f4bdc3e9-b96a-4b27-8064-eb06deb6433f" />
+
 ##  License
 This project is licensed under the MIT License.
 
@@ -78,6 +81,8 @@ This project is licensed under the MIT License.
 2.  解壓縮並執行 `IntelliOps.WPF.exe`。
 3.  系統將自動偵測並喚醒 Ollama 服務。
 
+##  截圖
+<img width="979" height="638" alt="Log處理器" src="https://github.com/user-attachments/assets/e592bb6c-7062-4c51-9bad-789c8d10849d" />
 
 ##  授權 (License)
 本專案採用 MIT License。
