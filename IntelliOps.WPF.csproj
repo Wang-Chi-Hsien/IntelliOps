@@ -23,16 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Skills\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Skills\Detective.md">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Skills\SysAdmin.md">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <None Include=".github\workflows\main.yml" />
   </ItemGroup>
 
 </Project>
