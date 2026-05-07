@@ -55,6 +55,9 @@ namespace IntelliOps.WPF
             }
         }
 
+        // [新增] 建立一個存放最近 5 分鐘所有日誌的環狀緩衝區
+        private Queue<(DateTime Time, string Message, EventLogEntryType Type)> _recentLogsBuffer = new();
+
         private void StartListening()
         {
             Task.Run(() =>
@@ -65,11 +68,42 @@ namespace IntelliOps.WPF
                     eventLog.EnableRaisingEvents = true;
                     eventLog.EntryWritten += (s, e) =>
                     {
+                        DateTime now = e.Entry.TimeGenerated;
+
+                        // 1. 維護滑動視窗：把大於 5 分鐘前的舊日誌踢出 Queue
+                        while (_recentLogsBuffer.Count > 0 && (now - _recentLogsBuffer.Peek().Time).TotalMinutes > 5)
+                        {
+                            _recentLogsBuffer.Dequeue();
+                        }
+
+                        // 2. 將所有攔截到的 Log (包含 Info) 都加進緩衝區
+                        _recentLogsBuffer.Enqueue((now, e.Entry.Message, e.Entry.EntryType));
+
+                        // 3. 只有遇到 Error 或 Warning 時，才觸發 UI 並交給 Agent
                         if (e.Entry.EntryType == EventLogEntryType.Error ||
                             e.Entry.EntryType == EventLogEntryType.Warning)
                         {
                             int safeEventId = (int)e.Entry.InstanceId;
-                            _aggregator.AddLog(e.Entry.Message, e.Entry.Source, safeEventId, e.Entry.EntryType);
+
+                            // 將 Queue 裡面的歷史紀錄組合成一段文字
+                            var contextBuilder = new System.Text.StringBuilder();
+                            foreach (var log in _recentLogsBuffer)
+                            {
+                                // 為了節省 Token，可以把太長的訊息截斷
+                                string shortMsg = log.Message.Length > 200 ? log.Message.Substring(0, 200) + "..." : log.Message;
+                                contextBuilder.AppendLine($"[{log.Time:HH:mm:ss}] [{log.Type}] {shortMsg}");
+                            }
+
+                            // 建立 Context 物件
+                            var logContext = new LogEventContext
+                            {
+                                PrimaryErrorLog = e.Entry.Message,
+                                SurroundingLogs = contextBuilder.ToString(),
+                                Timestamp = now
+                            };
+
+                            // 交給 Aggregator
+                            _aggregator.AddLog(logContext, e.Entry.Source, safeEventId, e.Entry.EntryType);
                         }
                     };
                 }
@@ -79,7 +113,6 @@ namespace IntelliOps.WPF
                 }
             });
         }
-
         private async void LogListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (LogListView.SelectedItem is LogGroup currentLog)
@@ -111,7 +144,7 @@ namespace IntelliOps.WPF
 
                     // 傳入 Callback 進行即時更新
                     // 注意：此處使用 await 接收最終結果，但過程中會不斷觸發 callback
-                    var analysisTask = _core.AnalyzeLogAsync(currentLog.Message, (partialText) =>
+                    var analysisTask = _core.AnalyzeLogAsync(currentLog.Context, (partialText) =>
                     {
                         // 確保切回 UI 執行緒
                         Dispatcher.Invoke(() =>
@@ -165,9 +198,17 @@ namespace IntelliOps.WPF
         {
             if (sender is Button btn && btn.Content is string action)
             {
+                // [新增] 抓取目前畫面上選取的 Log 訊息
+                string currentPrimaryLog = "";
+                if (LogListView.SelectedItem is LogGroup currentLog)
+                {
+                    currentPrimaryLog = currentLog.Message;
+                }
+
                 if (action == "SearchStackOverflow")
                 {
-                    _ = _core.ExecuteActionAsync(action);
+                    // [修改] 補上第二個參數 currentPrimaryLog
+                    _ = _core.ExecuteActionAsync(action, currentPrimaryLog);
                     return;
                 }
 
@@ -177,7 +218,8 @@ namespace IntelliOps.WPF
 
                 if (confirm == MessageBoxResult.Yes)
                 {
-                    _ = _core.ExecuteActionAsync(action);
+                    // [修改] 補上第二個參數 currentPrimaryLog
+                    _ = _core.ExecuteActionAsync(action, currentPrimaryLog);
                 }
             }
         }

@@ -22,4 +22,17 @@
     <PackageReference Include="System.Numerics.Tensors" Version="10.0.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Skills\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Skills\Detective.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Skills\SysAdmin.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
