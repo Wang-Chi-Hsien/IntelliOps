@@ -1,4 +1,8 @@
 <Solution>
-  <Project Path="../IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj" Id="84b1585b-9ae7-4a1e-9f19-44447a918118" />
+  <Folder Name="/.github/" />
+  <Folder Name="/.github/workflows/">
+    <File Path="main.yml" />
+  </Folder>
+  <Project Path="IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj" />
   <Project Path="IntelliOps.WPF.csproj" />
 </Solution>
