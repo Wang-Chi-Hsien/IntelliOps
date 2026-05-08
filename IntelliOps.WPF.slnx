@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/.github/" />
   <Folder Name="/.github/workflows/">
-    <File Path="main.yml" />
+    <File Path="master.yml" />
   </Folder>
   <Project Path="IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj" />
   <Project Path="IntelliOps.WPF.csproj" />

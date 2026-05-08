@@ -1,0 +1,31 @@
+name: IntelliOps C# CI/CD
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 下載最新的程式碼
+      uses: actions/checkout@v4
+
+    - name: 設定 .NET 環境
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x' # 請依據您專案實際使用的 .NET 版本修改 (例如 6.0.x, 7.0.x)
+
+    - name: 還原 NuGet 套件 (Restore)
+      run: dotnet restore
+
+    - name: 編譯專案 (Build)
+      # 確保沒有編譯錯誤
+      run: dotnet build --no-restore --configuration Release
+
+    # 未來如果您有寫 C# 的單元測試 (xUnit/NUnit)，可以把這段打開
+    # - name: 執行單元測試 (Test)
+    #   run: dotnet test --no-build --verbosity normal
