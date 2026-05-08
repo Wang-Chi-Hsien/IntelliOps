@@ -1,20 +1,28 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Linq;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace IntelliOps.WPF
 {
     public partial class MainWindow : Window
     {
-        private LogAggregator _aggregator = null!;
-        private IntelliOpsCore _core = null!;
+        // [移至 AgentWorker] 這些核心物件現在由背景服務負責，UI 不再直接持有
+        // private LogAggregator _aggregator = null!;
+        // private IntelliOpsCore _core = null!;
+
         private bool _isAutoScroll = true;
 
         public MainWindow()
         {
             InitializeComponent();
-            _core = new IntelliOpsCore();
+
+            // [移至 AgentWorker]
+            // _core = new IntelliOpsCore();
+
             this.Loaded += MainWindow_Loaded;
         }
 
@@ -23,101 +31,34 @@ namespace IntelliOps.WPF
             try
             {
                 if (TxtAiAnalysis != null)
-                    TxtAiAnalysis.Text = "系統初始化中... (正在連線至 Ollama 模型 qwen2.5:3b 與載入知識庫)";
+                    TxtAiAnalysis.Text = "WPF 戰情面板已啟動。等待連線至 AgentWorker 資料庫...";
 
-                await _core.InitializeAsync();
+                // [移至 AgentWorker]
+                // await _core.InitializeAsync();
+                // _aggregator = new LogAggregator();
+                // LogListView.ItemsSource = _aggregator.Logs;
 
-                if (TxtAiAnalysis != null)
-                    TxtAiAnalysis.Text = "系統就緒。正在監控 Windows Event Log...";
+                // _aggregator.OnLogAdded += (newLog) => { ... };
 
-                _aggregator = new LogAggregator();
-                LogListView.ItemsSource = _aggregator.Logs;
-
-                _aggregator.OnLogAdded += (newLog) =>
-                {
-                    Dispatcher.Invoke(() =>
-                    {
-                        if (_isAutoScroll)
-                        {
-                            LogListView.SelectedItem = newLog;
-                            LogListView.ScrollIntoView(newLog);
-                        }
-                    });
-                };
-
-                StartListening();
+                // [移至 AgentWorker] 監聽系統日誌的工作，現在應該交給背景常駐的 Agent 去做
+                // StartListening();
             }
             catch (Exception ex)
             {
-                if (TxtAiAnalysis != null)
-                    TxtAiAnalysis.Text = $"嚴重錯誤：系統初始化失敗。\n請確認您已執行 'ollama serve' 並且已下載 'qwen2.5:3b' 模型。\n錯誤細節: {ex.Message}";
-                MessageBox.Show($"初始化失敗: {ex.Message}", "系統錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"UI 初始化失敗: {ex.Message}", "系統錯誤", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        // [新增] 建立一個存放最近 5 分鐘所有日誌的環狀緩衝區
-        private Queue<(DateTime Time, string Message, EventLogEntryType Type)> _recentLogsBuffer = new();
+        // [移至 AgentWorker] 這個 Queue 和監聽邏輯，請原封不動搬到 AgentWorker 裡面！
+        // private Queue<(DateTime Time, string Message, EventLogEntryType Type)> _recentLogsBuffer = new();
+        // private void StartListening() { ... }
 
-        private void StartListening()
-        {
-            Task.Run(() =>
-            {
-                var eventLog = new EventLog("Application");
-                try
-                {
-                    eventLog.EnableRaisingEvents = true;
-                    eventLog.EntryWritten += (s, e) =>
-                    {
-                        DateTime now = e.Entry.TimeGenerated;
-
-                        // 1. 維護滑動視窗：把大於 5 分鐘前的舊日誌踢出 Queue
-                        while (_recentLogsBuffer.Count > 0 && (now - _recentLogsBuffer.Peek().Time).TotalMinutes > 5)
-                        {
-                            _recentLogsBuffer.Dequeue();
-                        }
-
-                        // 2. 將所有攔截到的 Log (包含 Info) 都加進緩衝區
-                        _recentLogsBuffer.Enqueue((now, e.Entry.Message, e.Entry.EntryType));
-
-                        // 3. 只有遇到 Error 或 Warning 時，才觸發 UI 並交給 Agent
-                        if (e.Entry.EntryType == EventLogEntryType.Error ||
-                            e.Entry.EntryType == EventLogEntryType.Warning)
-                        {
-                            int safeEventId = (int)e.Entry.InstanceId;
-
-                            // 將 Queue 裡面的歷史紀錄組合成一段文字
-                            var contextBuilder = new System.Text.StringBuilder();
-                            foreach (var log in _recentLogsBuffer)
-                            {
-                                // 為了節省 Token，可以把太長的訊息截斷
-                                string shortMsg = log.Message.Length > 200 ? log.Message.Substring(0, 200) + "..." : log.Message;
-                                contextBuilder.AppendLine($"[{log.Time:HH:mm:ss}] [{log.Type}] {shortMsg}");
-                            }
-
-                            // 建立 Context 物件
-                            var logContext = new LogEventContext
-                            {
-                                PrimaryErrorLog = e.Entry.Message,
-                                SurroundingLogs = contextBuilder.ToString(),
-                                Timestamp = now
-                            };
-
-                            // 交給 Aggregator
-                            _aggregator.AddLog(logContext, e.Entry.Source, safeEventId, e.Entry.EntryType);
-                        }
-                    };
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"監聽 Log 失敗: {ex.Message}");
-                }
-            });
-        }
         private async void LogListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // [移至 AgentWorker] 由於 LogGroup, AnalysisResult, 和 _core 都搬走了，這裡暫時註解
+            /*
             if (LogListView.SelectedItem is LogGroup currentLog)
             {
-                // 1. UI 重置
                 if (_aggregator.Logs.Count > 0 && currentLog != _aggregator.Logs.Last())
                 {
                     _isAutoScroll = false;
@@ -130,41 +71,27 @@ namespace IntelliOps.WPF
                 ActionList.ItemsSource = null;
                 if (LoadingPanel != null) LoadingPanel.Visibility = Visibility.Collapsed;
 
-                // 2. 檢查快取
                 if (currentLog.CachedAnalysis != null)
                 {
                     DisplayResult(currentLog.CachedAnalysis);
                 }
                 else
                 {
-                    // --- 3. 開始新分析 (Streaming) ---
                     if (_core == null) return;
-
                     if (LoadingPanel != null) LoadingPanel.Visibility = Visibility.Visible;
 
-                    // 傳入 Callback 進行即時更新
-                    // 注意：此處使用 await 接收最終結果，但過程中會不斷觸發 callback
                     var analysisTask = _core.AnalyzeLogAsync(currentLog.Context, (partialText) =>
                     {
-                        // 確保切回 UI 執行緒
                         Dispatcher.Invoke(() =>
                         {
-                            // [防呆] 只有當使用者還看著這一筆 Log 時，才更新畫面
                             if (LogListView.SelectedItem == currentLog)
-                            {
                                 TxtAiAnalysis.Text = partialText;
-                                // 讓 ScrollViewer 捲到底部 (假設外層有 ScrollViewer 名為 LogScrollViewer，若無可忽略)
-                                // LogScrollViewer.ScrollToBottom(); 
-                            }
                         });
                     });
 
                     var result = await analysisTask;
-
-                    // 4. 分析完成，存入快取
                     currentLog.CachedAnalysis = result;
 
-                    // 5. 再次檢查是否要更新最終 UI
                     if (LogListView.SelectedItem == currentLog)
                     {
                         if (LoadingPanel != null) LoadingPanel.Visibility = Visibility.Collapsed;
@@ -172,8 +99,11 @@ namespace IntelliOps.WPF
                     }
                 }
             }
+            */
         }
 
+        // [移至 AgentWorker] 由於 AnalysisResult 搬走了，此方法暫時註解
+        /*
         private void DisplayResult(AnalysisResult result)
         {
             TxtRagScore.Text = $"Similarity: {result.MatchScore:P0}";
@@ -181,6 +111,7 @@ namespace IntelliOps.WPF
             TxtAiAnalysis.Text = result.AiAnalysis;
             ActionList.ItemsSource = result.SuggestedActions;
         }
+        */
 
         private void BtnResumeScroll_Click(object sender, RoutedEventArgs e)
         {
@@ -198,7 +129,8 @@ namespace IntelliOps.WPF
         {
             if (sender is Button btn && btn.Content is string action)
             {
-                // [新增] 抓取目前畫面上選取的 Log 訊息
+                // [移至 AgentWorker] 這裡未來要改成透過 API 或資料庫告訴 Agent 去執行指令
+                /*
                 string currentPrimaryLog = "";
                 if (LogListView.SelectedItem is LogGroup currentLog)
                 {
@@ -207,7 +139,6 @@ namespace IntelliOps.WPF
 
                 if (action == "SearchStackOverflow")
                 {
-                    // [修改] 補上第二個參數 currentPrimaryLog
                     _ = _core.ExecuteActionAsync(action, currentPrimaryLog);
                     return;
                 }
@@ -218,9 +149,9 @@ namespace IntelliOps.WPF
 
                 if (confirm == MessageBoxResult.Yes)
                 {
-                    // [修改] 補上第二個參數 currentPrimaryLog
                     _ = _core.ExecuteActionAsync(action, currentPrimaryLog);
                 }
+                */
             }
         }
     }

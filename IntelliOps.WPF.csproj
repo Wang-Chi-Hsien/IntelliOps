@@ -11,6 +11,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="IntelliOps.AgentWorker\**" />
+    <EmbeddedResource Remove="IntelliOps.AgentWorker\**" />
+    <None Remove="IntelliOps.AgentWorker\**" />
+    <Page Remove="IntelliOps.AgentWorker\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Program.cs" />
   </ItemGroup>
 
