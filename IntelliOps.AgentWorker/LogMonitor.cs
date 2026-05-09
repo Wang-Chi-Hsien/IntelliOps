@@ -26,7 +26,7 @@ namespace IntelliOps.AgentWorker
 
         public async Task StartTailingAsync(string filePath, CancellationToken token)
         {
-            Console.WriteLine($"👀 開始監控日誌: {filePath}");
+            Console.WriteLine($"開始監控日誌: {filePath}");
 
             // 確保檔案存在，否則會報錯
             if (!File.Exists(filePath))

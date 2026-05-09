@@ -8,7 +8,7 @@ namespace IntelliOps.AgentWorker
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine("🚀 IntelliOps Agent Worker 啟動中...");
+            Console.WriteLine("IntelliOps Agent Worker 啟動中...");
 
             // 1. 建立核心元件
             var aggregator = new LogAggregator();
@@ -17,7 +17,7 @@ namespace IntelliOps.AgentWorker
 
             // 2. 初始化 AI 大腦
             await core.InitializeAsync();
-            Console.WriteLine("🧠 AI 大腦初始化完成。");
+            Console.WriteLine("AI 大腦初始化完成。");
 
             // 3. 設定神經傳導路徑 (當 Aggregator 收到 Log 時，呼叫 Core 分析)
             aggregator.OnLogAdded += async (logGroup) =>
@@ -31,7 +31,7 @@ namespace IntelliOps.AgentWorker
                 logGroup.CachedAnalysis = result;
 
                 Console.WriteLine("========================================");
-                Console.WriteLine("✅ RCA 報告生成完畢 (已寫入快取/準備推播)");
+                Console.WriteLine(" RCA 報告生成完畢 (已寫入快取/準備推播)");
                 Console.WriteLine("========================================\n");
             };
 

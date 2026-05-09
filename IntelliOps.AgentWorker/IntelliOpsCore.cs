@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 #pragma warning disable SKEXP0110 
 #pragma warning disable SKEXP0001
 #pragma warning disable SKEXP0011
+#pragma warning disable SKEXP0010
 
 namespace IntelliOps.AgentWorker
 {
