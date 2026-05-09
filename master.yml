@@ -20,11 +20,12 @@ jobs:
         dotnet-version: '8.0.x' # 請依據您專案實際使用的 .NET 版本修改 (例如 6.0.x, 7.0.x)
 
     - name: 還原 NuGet 套件 (Restore)
-      run: dotnet restore
+      run: dotnet restore IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj
 
     - name: 編譯專案 (Build)
       # 確保沒有編譯錯誤
-      run: dotnet build --no-restore --configuration Release
+      run: dotnet build IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj --no-restore
+
 
     # 未來如果您有寫 C# 的單元測試 (xUnit/NUnit)，可以把這段打開
     # - name: 執行單元測試 (Test)
