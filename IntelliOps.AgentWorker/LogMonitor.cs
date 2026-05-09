@@ -93,7 +93,7 @@ namespace IntelliOps.AgentWorker
                 Timestamp = DateTime.Now
             };
 
-            Console.WriteLine($"\n🚨 [攔截錯誤] {errorLine.Substring(0, Math.Min(50, errorLine.Length))}...");
+            Console.WriteLine($"\n  [攔截錯誤] {errorLine.Substring(0, Math.Min(50, errorLine.Length))}...");
             _aggregator.AddLog(context, "LinuxServer", 0, EventLogEntryType.Error);
         }
 
