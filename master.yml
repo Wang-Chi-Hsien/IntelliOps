@@ -1,32 +1,32 @@
-name: IntelliOps C# CI/CD
+name: build-and-test
+
+# 消除 Node.js 20 警告的環境變數
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main", "master" ]
 
 jobs:
-  build-and-test:
-    runs-on: windows-latest
+  build:
+    runs-on: ubuntu-latest
 
     steps:
-    - name: 下載最新的程式碼
+    - name: 📥 下載最新的程式碼
       uses: actions/checkout@v4
 
-    - name: 設定 .NET 環境
+    - name: ⚙️ 設定 .NET 10 環境
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x' # 請依據您專案實際使用的 .NET 版本修改 (例如 6.0.x, 7.0.x)
+        # 注意這裡！因為您的 csproj 寫著 net10.0，所以必須裝 10.0.x
+        dotnet-version: '10.0.x' 
 
-    - name: 還原 NuGet 套件 (Restore)
-      run: dotnet restore IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj
+    - name: 📦 還原 NuGet 套件 (嚴格指定只看 AgentWorker)
+      # 強制指定 csproj 的絕對路徑，絕對不允許機器人去碰 .sln 檔！
+      run: dotnet restore ./IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj
 
-    - name: 編譯專案 (Build)
-      # 確保沒有編譯錯誤
-      run: dotnet build IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj --no-restore
-
-
-    # 未來如果您有寫 C# 的單元測試 (xUnit/NUnit)，可以把這段打開
-    # - name: 執行單元測試 (Test)
-    #   run: dotnet test --no-build --verbosity normal
+    - name: 🔨 編譯專案 (嚴格指定只看 AgentWorker)
+      run: dotnet build ./IntelliOps.AgentWorker/IntelliOps.AgentWorker.csproj --configuration Release --no-restore
