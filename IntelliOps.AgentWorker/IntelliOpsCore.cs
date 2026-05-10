@@ -51,8 +51,9 @@ namespace IntelliOps.AgentWorker
                     throw new Exception("無法連線至 Ollama。請確認 ollama serve 已啟動。");
 
                 var builder = Kernel.CreateBuilder();
-                // 若未來硬體允許，建議將 qwen2.5:3b 升級為 qwen2.5:7b 或 llama3:8b 以獲得更好的報告品質
-                builder.AddOpenAIChatCompletion("qwen2.5:3b", "ollama", httpClient: _sharedHttpClient);
+
+                // [修改] 升級為高階推理模型 qwen3:4b 
+                builder.AddOpenAIChatCompletion("qwen3:4b", "ollama", httpClient: _sharedHttpClient);
                 builder.AddOpenAIEmbeddingGenerator("nomic-embed-text", "ollama", httpClient: _sharedHttpClient);
 
                 _kernel = builder.Build();
@@ -106,7 +107,7 @@ namespace IntelliOps.AgentWorker
             string cacheKey = $"Report_{primaryLog.GetHashCode()}";
             if (_reportCache.TryGetValue(cacheKey, out AnalysisResult cachedResult))
             {
-                onProgress?.Invoke("⚡ [快取攔截] 此錯誤在近 10 分鐘內已分析過，直接載入歷史報告...");
+                onProgress?.Invoke("[快取攔截] 此錯誤在近 10 分鐘內已分析過，直接載入歷史報告...");
                 return cachedResult;
             }
 
@@ -146,28 +147,19 @@ namespace IntelliOps.AgentWorker
                 }
 
                 // ==========================================
-                // 3. 雙 Agent 協作 (Actor-Critic 模式)
+                // 3. 單一 Agent 深度分析 (高階模型 + 強制格式)
                 // ==========================================
                 onProgress?.Invoke("Agent 深度分析中...\n");
 
-                string analyzerInstructions = "你是一位初級系統分析師。請根據錯誤日誌與上下文，找出可能的故障原因。若有提供「歷史相似維修紀錄」，請評估是否適用於本次錯誤。不需要產出最終報告，只需提供分析見解。";
-
-                string reviewerInstructions = "你是一位資深可靠度工程師(SRE)。請審查初級分析師的意見，並嚴格按照以下格式輸出最終 RCA (根本原因) 報告：\n" +
-                                              "【根本原因】: (一句話總結)\n" +
-                                              "【詳細分析】: (簡述邏輯)\n" +
-                                              "【修復建議】: (列出 1-3 點工程師該執行的具體步驟)";
-
-                ChatCompletionAgent analyzerAgent = new() { Name = "Analyzer", Instructions = analyzerInstructions, Kernel = _kernel };
-                ChatCompletionAgent reviewerAgent = new() { Name = "Reviewer", Instructions = reviewerInstructions, Kernel = _kernel };
-
-                AgentGroupChat chat = new(analyzerAgent, reviewerAgent)
-                {
-                    ExecutionSettings = new()
-                    {
-                        SelectionStrategy = new SequentialSelectionStrategy(),
-                        TerminationStrategy = new ReviewerTerminationStrategy() { Agents = [reviewerAgent], MaximumIterations = 2 }
-                    }
-                };
+                // [修改] 將指令合併，並給予極度嚴格的格式限制
+                string systemInstructions =
+                    "你是一位資深系統可靠度工程師(SRE)。請務必使用『繁體中文 (台灣)』回答。\n" +
+                    "請根據提供的錯誤日誌與上下文，找出故障的根本原因。\n" +
+                    "若有提供「歷史相似維修紀錄」，請評估是否適用於本次錯誤。\n" +
+                    "請『嚴格』按照以下格式輸出，絕不可包含任何問候語（如「好的」、「我了解了」）或多餘的解釋文字：\n\n" +
+                    "【根本原因】: (一句話總結)\n" +
+                    "【詳細分析】: (簡述你的診斷邏輯)\n" +
+                    "【修復建議】: (列出 1-3 點工程師該執行的具體步驟)";
 
                 // 將錯誤、上下文與 RAG 資料一起餵進 Prompt
                 string prompt = $"請分析以下伺服器錯誤:\n" +
@@ -175,19 +167,19 @@ namespace IntelliOps.AgentWorker
                                 $"【發生前 50 行上下文】: \n{logContext.SurroundingLogs}\n\n" +
                                 $"{ragContextBuilder.ToString()}";
 
-                chat.AddChatMessage(new ChatMessageContent(AuthorRole.User, prompt));
+                // [修改] 直接建立對話歷史，使用 IChatCompletionService 進行單次高效率推理
+                ChatHistory chatHistory = new ChatHistory(systemInstructions);
+                chatHistory.AddUserMessage(prompt);
 
                 StringBuilder conversationLog = new StringBuilder();
                 string finalReport = "";
 
-                await foreach (var content in chat.InvokeAsync())
-                {
-                    string role = content.AuthorName == "Analyzer" ? "🔎 初步分析" : "📋 最終 RCA 報告";
-                    conversationLog.Append($"[{role}]:\n{content.Content}\n\n");
-                    onProgress?.Invoke(conversationLog.ToString());
+                // 呼叫大腦進行推理
+                var response = await _chat.GetChatMessageContentAsync(chatHistory);
+                finalReport = response.Content ?? "AI 未回傳任何內容。";
 
-                    if (content.AuthorName == "Reviewer") finalReport = content.Content ?? "";
-                }
+                conversationLog.Append($"[最終 RCA 報告]:\n{finalReport}\n\n");
+                onProgress?.Invoke(conversationLog.ToString());
 
                 result.AiAnalysis = conversationLog.ToString();
 
@@ -196,7 +188,10 @@ namespace IntelliOps.AgentWorker
                 // ==========================================
                 _reportCache.Set(cacheKey, result, TimeSpan.FromMinutes(10));
             }
-            catch (Exception ex) { onProgress?.Invoke($"分析失敗: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                onProgress?.Invoke($"分析失敗: {ex.Message}");
+            }
 
             return result;
         }
@@ -228,12 +223,5 @@ namespace IntelliOps.AgentWorker
                 Debug.WriteLine($"❌ 學習失敗: {ex.Message}");
             }
         }
-
-        private class ReviewerTerminationStrategy : TerminationStrategy
-        {
-            protected override Task<bool> ShouldAgentTerminateAsync(Agent agent, IReadOnlyList<ChatMessageContent> history, CancellationToken cancellationToken)
-                => Task.FromResult(agent.Name == "Reviewer");
-        }
     }
-
 }

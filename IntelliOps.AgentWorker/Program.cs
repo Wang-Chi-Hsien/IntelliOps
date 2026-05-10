@@ -6,8 +6,12 @@ namespace IntelliOps.AgentWorker
 {
     class Program
     {
+        // 新增這行：這是一個通行證，參數 (1, 1) 代表同時間「只允許 1 個任務」進入 AI 大腦
+        private static readonly SemaphoreSlim _aiSemaphore = new SemaphoreSlim(1, 1);
         static async Task Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+
             Console.WriteLine("IntelliOps Agent Worker 啟動中...");
 
             // 1. 建立核心元件
@@ -19,23 +23,39 @@ namespace IntelliOps.AgentWorker
             await core.InitializeAsync();
             Console.WriteLine("AI 大腦初始化完成。");
 
-            // 3. 設定神經傳導路徑 (當 Aggregator 收到 Log 時，呼叫 Core 分析)
+            // 3. 設定神經傳導路徑
             aggregator.OnLogAdded += async (logGroup) =>
             {
-                var result = await core.AnalyzeLogAsync(logGroup.Context, (progress) =>
+                // [修改] 使用安全的印字，不會破壞畫面
+                ConsoleHelper.WriteLineSafely($"🚨 [錯誤排隊中] 發現異常: {logGroup.Context.PrimaryErrorLog}");
+
+                await _aiSemaphore.WaitAsync();
+
+                try
                 {
-                    // 在終端機印出 AI 思考過程
-                    Console.WriteLine(progress);
-                });
+                    var result = await ConsoleHelper.RunWithSpinnerAsync(
+                        "   [處理中] 大腦推理中，請稍候",
+                        async () => await core.AnalyzeLogAsync(logGroup.Context)
+                    );
 
-                logGroup.CachedAnalysis = result;
+                    logGroup.CachedAnalysis = result;
 
-                Console.WriteLine("========================================");
-                Console.WriteLine(" RCA 報告生成完畢 (已寫入快取/準備推播)");
-                Console.WriteLine("========================================\n");
+                    // 印出最終報告
+                    ConsoleHelper.PrintReportSafely(result.AiAnalysis);
+
+                    // [修改] 移除 Console.ReadLine()！
+                    // 背景程式不應等待輸入。我們只記錄日誌，真正的反饋應由 Web API 處理。
+                    ConsoleHelper.WriteLineSafely("   [系統提示] 報告已存檔。等待外部系統匯入學習反饋...");
+                    ConsoleHelper.WriteLineSafely("--------------------------------------------------------");
+                }
+                finally
+                {
+                    // 確保通行證一定會被歸還，讓下一個錯誤可以進來！
+                    _aiSemaphore.Release();
+                }
             };
 
-            // 4. 準備優雅關閉的機制 (按 Ctrl+C 時觸發)
+            // 4. 準備優雅關閉的機制
             var cts = new CancellationTokenSource();
             Console.CancelKeyPress += (sender, e) =>
             {
@@ -44,18 +64,14 @@ namespace IntelliOps.AgentWorker
                 Console.WriteLine("\n正在安全關閉系統...");
             };
 
-            // 5. 開始監聽檔案 (請替換為您測試用的假 Log 檔，或 Linux 真實路徑)
-            // 在 Windows 測試時，可以先建一個 C:\temp\test.log
+            // 5. 開始監聽檔案
             string logPath = "/var/log/syslog";
-
-            // 為了在 Windows 本機測試，我們做個簡單的判斷
             if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
             {
                 logPath = "C:\\temp\\syslog.log";
                 if (!System.IO.File.Exists(logPath)) System.IO.File.Create(logPath).Close();
             }
 
-            // 啟動監聽器 (這會卡住主執行緒，直到使用者按下 Ctrl+C)
             await monitor.StartTailingAsync(logPath, cts.Token);
 
             Console.WriteLine("系統已完全關閉。");

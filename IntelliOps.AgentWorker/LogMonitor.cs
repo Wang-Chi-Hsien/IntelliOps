@@ -26,12 +26,12 @@ namespace IntelliOps.AgentWorker
 
         public async Task StartTailingAsync(string filePath, CancellationToken token)
         {
-            Console.WriteLine($"開始監控日誌: {filePath}");
+            ConsoleHelper.WriteLineSafely($"開始監控日誌: {filePath}");
 
             // 確保檔案存在，否則會報錯
             if (!File.Exists(filePath))
             {
-                Console.WriteLine($"[警告] 找不到日誌檔案: {filePath}。請確認路徑或權限。");
+                ConsoleHelper.WriteLineSafely($"[警告] 找不到日誌檔案: {filePath}。請確認路徑或權限。");
                 return;
             }
 
@@ -93,7 +93,7 @@ namespace IntelliOps.AgentWorker
                 Timestamp = DateTime.Now
             };
 
-            Console.WriteLine($"\n  [攔截錯誤] {errorLine.Substring(0, Math.Min(50, errorLine.Length))}...");
+            ConsoleHelper.WriteLineSafely($"\n  [攔截錯誤] {errorLine.Substring(0, Math.Min(50, errorLine.Length))}...");
             _aggregator.AddLog(context, "LinuxServer", 0, EventLogEntryType.Error);
         }
 
